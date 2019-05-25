@@ -1,60 +1,39 @@
 import React, { Component } from 'react';
 import './App.css';
-
-import bookList from './booklist';
+import BookList from './bookList/bookList';
 
 class App extends Component {
 
-constructor(props) {
-    super(props);
-    this.state = {
-        searchTerm: "",
-        printType: [],
-        bookType: []  
- }
-}
+  constructor(props) {
+      super(props);
+      this.state = {
+          searchTerm: "george",
+          printType: ["ebooks"],
+          bookType: [],
+          searchedBooks: []
+    }
+  }
 
-componentDidMount() {
-    const baseURL = `https://www.googleapis.com/books/v1/volumes?q=${this.state.searchTerm}`
-    const searchURLs = [{baseURL}, `${baseURL}&filter=free-ebooks`, `${baseURL}&filter=partial`, `${baseURL}&filter=full`, `${baseURL}&filter=paid-ebooks`, `${baseURL}&filter=ebooks`]
-
-    Promise.all(searchURLs.map(url =>
-        fetch(url)
-        .then(checkResults)
-        .then(response => response.json())
-        .catch(err => {
-            throw new Error(err.message);
-        })
-        .then(data => {
-            if(this.state.bookType !== "no filter") {
-                filterResults(data[1]);
-            }
-            else {
-                filterResults(data[0]);
-            }
-        })
-     ))
-}
-
-filterResults(input){
+  filterResults(input){
     const filteredBooks = []
-    const bookObject = {}
+    let bookObject = {}
     input.items.map(index => {
         bookObject = {
             title : index.volumeInfo.title, 
             authors: index.volumeInfo.authors, 
-            thumbnail: index.imageLinks.smallThumbnail, 
-            snippet: index.searchInfo.textSnippet, 
-            cost: index.saleInfo.listPrice.amount, 
-            purchaseLink: index.saleInfo.buyLink}
-
+            thumbnail: index.volumeInfo.imageLinks.thumbnail ? index.volumeInfo.imageLinks.thumbnail : null, 
+            // snippet: index.searchInfo.textSnippet ? index.searchInfo.textSnippet : null,
+            // cost: index.saleInfo.listPrice.amount ? index.saleInfo.listPrice.amount : null,
+            purchaseLink: index.saleInfo.buyLink
+          }
         filteredBooks.push(bookObject)
     })
-
-return filteredBooks;
-    //items.
-}
-
+    // return filteredBooks;
+    this.setState({
+      searchedBooks: filteredBooks 
+    })
+        //items.
+  }
 
 checkResults(response) {
     if (response.ok) {
@@ -62,11 +41,37 @@ checkResults(response) {
     }
     throw new Error(response.statusText);
   }
+
+  componentDidMount() {
+      const baseURL = `https://www.googleapis.com/books/v1/volumes?q=${this.state.searchTerm}`
+      const searchURLs = [{baseURL}, `${baseURL}&filter=${this.state.printType}`]  //`${baseURL}&filter=partial`, `${baseURL}&filter=full`, `${baseURL}&filter=paid-ebooks`, `${baseURL}&filter=ebooks`]
+
+      Promise.all(searchURLs.map(url =>
+          fetch(url)
+          .then(this.checkResults)
+          .then(response => response.json())
+          .then(data => {
+              if(this.state.bookType !== "No Filter") {
+                  this.filterResults(data);
+              }
+              else {
+                  this.filterResults(data[0]);
+              }
+          })
+          .catch(err => {
+            this.setState({
+              error: err.message
+            });
+        })
+      ))
+  }
   
   render() {
+    const error = this.state.error ? <div>{this.state.error}</div> : "";
     return (
       <div className="App">
-        <bookList  prop={}  />
+        {error}
+        <BookList  searchedBooks={this.state.searchedBooks}  />
       </div>
     );
   }
